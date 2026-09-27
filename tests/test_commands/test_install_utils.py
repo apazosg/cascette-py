@@ -80,6 +80,7 @@ class TestGetProductEnum:
             "wow_classic",
             "wow_classic_era",
             "wow_classic_titan",
+            "wow_classic_beta",
             "wow_anniversary",
             "wowt",
             "wowxptr",
@@ -262,6 +263,11 @@ class TestDefaultSubfolder:
         from cascette_tools.commands.install import default_subfolder
 
         assert default_subfolder("wow_classic_titan") == "_classic_titan_"
+
+    def test_beta_product(self) -> None:
+        from cascette_tools.commands.install import default_subfolder
+
+        assert default_subfolder("wow_classic_beta") == "_classic_beta_"
 
     def test_classic_product(self) -> None:
         from cascette_tools.commands.install import default_subfolder

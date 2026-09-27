@@ -29,6 +29,7 @@ class Product(StrEnum):
     WOW_CLASSIC = "wow_classic"
     WOW_CLASSIC_ERA = "wow_classic_era"
     WOW_CLASSIC_TITAN = "wow_classic_titan"
+    WOW_CLASSIC_BETA = "wow_classic_beta"
     WOW_ANNIVERSARY = "wow_anniversary"
     WOW_BETA = "wowt"
     WOW_PTR = "wowxptr"
@@ -72,6 +73,7 @@ PRODUCT_FAMILY_MAP: dict[Product, ProductFamily] = {
     Product.WOW_CLASSIC: ProductFamily.WOW,
     Product.WOW_CLASSIC_ERA: ProductFamily.WOW,
     Product.WOW_CLASSIC_TITAN: ProductFamily.WOW,
+    Product.WOW_CLASSIC_BETA: ProductFamily.WOW,
     Product.WOW_ANNIVERSARY: ProductFamily.WOW,
     Product.WOW_BETA: ProductFamily.WOW,
     Product.WOW_PTR: ProductFamily.WOW,

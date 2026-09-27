@@ -32,6 +32,7 @@ class TestProductFamily:
             Product.WOW_CLASSIC,
             Product.WOW_CLASSIC_ERA,
             Product.WOW_CLASSIC_TITAN,
+            Product.WOW_CLASSIC_BETA,
             Product.WOW_ANNIVERSARY,
             Product.WOW_BETA,
             Product.WOW_PTR,

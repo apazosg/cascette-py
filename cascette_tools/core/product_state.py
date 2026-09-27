@@ -230,6 +230,7 @@ def get_product_directory_name(product_code: str) -> str | None:
     - wow_classic -> _classic_
     - wow_classic_era -> _classic_era_
     - wow_classic_titan -> _classic_titan_
+    - wow_classic_beta -> _classic_beta_
     - wow_anniversary -> _anniversary_
     - wowt/wow_beta -> _ptr_
 
@@ -246,6 +247,7 @@ def get_product_directory_name(product_code: str) -> str | None:
         "wow_classic": "_classic_",
         "wow_classic_era": "_classic_era_",
         "wow_classic_titan": "_classic_titan_",
+        "wow_classic_beta": "_classic_beta_",
         "wow_anniversary": "_anniversary_",
         "wow_classic_ptr": "_classic_ptr_",
         "wowt": "_ptr_",

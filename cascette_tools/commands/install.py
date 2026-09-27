@@ -164,6 +164,8 @@ def default_subfolder(product: str) -> str:
         return "_classic_era_"
     if product == Product.WOW_CLASSIC_TITAN.value:
         return "_classic_titan_"
+    if product == Product.WOW_CLASSIC_BETA.value:
+        return "_classic_beta_"
     return "_classic_"
 
 
@@ -3812,6 +3814,7 @@ async def _download_containerless_files(
             "wow_classic",
             "wow_classic_era",
             "wow_classic_titan",
+            "wow_classic_beta",
             "wow_anniversary",
         ]
     ),
@@ -4154,6 +4157,7 @@ def install_containerless(
             "wow_classic",
             "wow_classic_era",
             "wow_classic_titan",
+            "wow_classic_beta",
             "wow_anniversary",
         ]
     ),

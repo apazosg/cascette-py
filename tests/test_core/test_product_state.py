@@ -76,6 +76,9 @@ class TestGetProductDirectoryName:
     def test_wow_classic_titan(self) -> None:
         assert get_product_directory_name("wow_classic_titan") == "_classic_titan_"
 
+    def test_wow_classic_beta(self) -> None:
+        assert get_product_directory_name("wow_classic_beta") == "_classic_beta_"
+
     def test_wow_anniversary(self) -> None:
         assert get_product_directory_name("wow_anniversary") == "_anniversary_"
 
