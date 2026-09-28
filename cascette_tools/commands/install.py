@@ -41,7 +41,10 @@ from cascette_tools.core.containerless_storage import ContainerlessStorage
 from cascette_tools.core.containerless_update import (
     classify_containerless_files,
 )
-from cascette_tools.core.download_queue import DownloadQueue, DownloadResult
+from cascette_tools.core.download_queue import (
+    DownloadResult,
+    create_download_queue_from_env,
+)
 from cascette_tools.core.encoding_cache import EncodingCache
 from cascette_tools.core.install_state import InstallState
 from cascette_tools.core.integrity import IntegrityError
@@ -1306,7 +1309,7 @@ async def _download_casc_files(
         integrity_errors = 0
         total_bytes = 0
 
-        queue = DownloadQueue(max_concurrency=12, max_per_host=3, max_retries=3)
+        queue = create_download_queue_from_env()
 
         entry_priority: dict[str, int] = {
             e.ekey.hex(): e.priority for e in pending_entries
@@ -1858,9 +1861,9 @@ async def _fetch_root_content(
     # Fetch missing files by full ekey: resolve each 9-byte prefix to the
     # full 16-byte key via the CDN index (matches on the full key), then
     # range-fetch from the archive with a loose fallback.
-    from cascette_tools.core.download_queue import DownloadQueue, DownloadResult
+    from cascette_tools.core.download_queue import DownloadResult
 
-    queue = DownloadQueue(max_concurrency=12, max_per_host=3, max_retries=3)
+    queue = create_download_queue_from_env()
     for prefix in missing_prefixes:
         prefix_bytes = bytes.fromhex(prefix)
 
@@ -3719,7 +3722,7 @@ async def _download_containerless_files(
     failed = 0
     total_bytes = 0
 
-    queue = DownloadQueue(max_concurrency=12, max_per_host=3, max_retries=3)
+    queue = create_download_queue_from_env()
 
     for ekey, _ckey, _rel_path in entries:
 

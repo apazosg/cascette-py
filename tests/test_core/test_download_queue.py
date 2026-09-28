@@ -3,7 +3,11 @@
 import asyncio
 import time
 
-from cascette_tools.core.download_queue import DownloadQueue, DownloadResult
+from cascette_tools.core.download_queue import (
+    DownloadQueue,
+    DownloadResult,
+    create_download_queue_from_env,
+)
 
 
 class TestDownloadResult:
@@ -307,3 +311,58 @@ class TestDownloadQueue:
             assert results == []
 
         asyncio.run(_run())
+
+
+class TestCreateDownloadQueueFromEnv:
+    """Test create_download_queue_from_env env configuration."""
+
+    ENV_VARS = (
+        "CASCETTE_MAX_CONCURRENCY",
+        "CASCETTE_MAX_PER_HOST",
+        "CASCETTE_MAX_RETRIES",
+    )
+
+    def _clear_env(self, monkeypatch) -> None:
+        for var in self.ENV_VARS:
+            monkeypatch.delenv(var, raising=False)
+
+    def test_defaults_when_no_env(self, monkeypatch):
+        """Defaults match historical hardcoded values when nothing is set."""
+        self._clear_env(monkeypatch)
+        queue = create_download_queue_from_env()
+        assert queue.max_concurrency == 12
+        assert queue.max_per_host == 3
+        assert queue.max_retries == 3
+
+    def test_valid_env_values(self, monkeypatch):
+        """Valid env values are applied."""
+        self._clear_env(monkeypatch)
+        monkeypatch.setenv("CASCETTE_MAX_CONCURRENCY", "4")
+        monkeypatch.setenv("CASCETTE_MAX_PER_HOST", "2")
+        monkeypatch.setenv("CASCETTE_MAX_RETRIES", "5")
+        queue = create_download_queue_from_env()
+        assert queue.max_concurrency == 4
+        assert queue.max_per_host == 2
+        assert queue.max_retries == 5
+
+    def test_invalid_env_falls_back_to_defaults(self, monkeypatch):
+        """Zero, negative and non-numeric values fall back to defaults."""
+        cases = ["0", "-1", "-100", "not-a-number", "", "  ", "4.5"]
+        for invalid in cases:
+            self._clear_env(monkeypatch)
+            monkeypatch.setenv("CASCETTE_MAX_CONCURRENCY", invalid)
+            monkeypatch.setenv("CASCETTE_MAX_PER_HOST", invalid)
+            monkeypatch.setenv("CASCETTE_MAX_RETRIES", invalid)
+            queue = create_download_queue_from_env()
+            assert queue.max_concurrency == 12
+            assert queue.max_per_host == 3
+            assert queue.max_retries == 3
+
+    def test_partial_env_uses_defaults_for_missing(self, monkeypatch):
+        """Only the defined vars override; the rest keep defaults."""
+        self._clear_env(monkeypatch)
+        monkeypatch.setenv("CASCETTE_MAX_CONCURRENCY", "6")
+        queue = create_download_queue_from_env()
+        assert queue.max_concurrency == 6
+        assert queue.max_per_host == 3
+        assert queue.max_retries == 3

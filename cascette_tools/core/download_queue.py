@@ -8,6 +8,7 @@ with exponential backoff retry and mirror rotation on failure.
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator, Callable, Coroutine
 from dataclasses import dataclass, field
 from typing import Any
@@ -16,6 +17,12 @@ from urllib.parse import urlparse
 import structlog
 
 logger = structlog.get_logger()
+
+#: Default download concurrency settings. These match the historical
+#: hardcoded values so behaviour is unchanged when no env vars are set.
+DEFAULT_MAX_CONCURRENCY = 12
+DEFAULT_MAX_PER_HOST = 3
+DEFAULT_MAX_RETRIES = 3
 
 
 @dataclass
@@ -216,3 +223,58 @@ class DownloadQueue:
             error=last_error,
             attempts=self.max_retries,
         )
+
+
+def create_download_queue_from_env(base_backoff: float = 0.5) -> DownloadQueue:
+    """Create a DownloadQueue with concurrency settings from the environment.
+
+    Reads (all optional, positive integers; invalid values log a warning
+    and fall back to the default):
+
+    - ``CASCETTE_MAX_CONCURRENCY`` (default 12): total concurrent downloads
+    - ``CASCETTE_MAX_PER_HOST`` (default 3): concurrent downloads per CDN host
+    - ``CASCETTE_MAX_RETRIES`` (default 3): retry attempts per download
+
+    Args:
+        base_backoff: Base delay in seconds for exponential backoff.
+
+    Returns:
+        DownloadQueue configured from the environment (or defaults).
+    """
+    resolved: dict[str, int] = {}
+    for env_name, default in (
+        ("CASCETTE_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY),
+        ("CASCETTE_MAX_PER_HOST", DEFAULT_MAX_PER_HOST),
+        ("CASCETTE_MAX_RETRIES", DEFAULT_MAX_RETRIES),
+    ):
+        raw = os.environ.get(env_name)
+        if raw is None or raw.strip() == "":
+            resolved[env_name] = default
+            continue
+        try:
+            value = int(raw.strip())
+        except ValueError:
+            logger.warning(
+                "invalid_download_concurrency_env",
+                env_var=env_name,
+                value=raw,
+                default=default,
+            )
+            resolved[env_name] = default
+            continue
+        if value <= 0:
+            logger.warning(
+                "invalid_download_concurrency_env",
+                env_var=env_name,
+                value=raw,
+                default=default,
+            )
+            resolved[env_name] = default
+            continue
+        resolved[env_name] = value
+    return DownloadQueue(
+        max_concurrency=resolved["CASCETTE_MAX_CONCURRENCY"],
+        max_per_host=resolved["CASCETTE_MAX_PER_HOST"],
+        max_retries=resolved["CASCETTE_MAX_RETRIES"],
+        base_backoff=base_backoff,
+    )
