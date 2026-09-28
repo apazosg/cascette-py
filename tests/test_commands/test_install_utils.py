@@ -1,12 +1,16 @@
 """Tests for install.py utility functions."""
 
+from pathlib import Path
+
 import pytest
 
 from cascette_tools.commands.install import (
     _fmt_size,
+    apply_max_files_limit,
     filter_entries_by_tags,
     get_product_enum,
 )
+from cascette_tools.core.install_state import InstallState
 from cascette_tools.core.types import Product
 from cascette_tools.formats.download import DownloadEntry, DownloadTag
 from cascette_tools.formats.size import SizeTag
@@ -278,3 +282,88 @@ class TestDefaultSubfolder:
         from cascette_tools.commands.install import default_subfolder
 
         assert default_subfolder("wow") == "_classic_"
+
+
+class TestApplyMaxFilesLimit:
+    """Tests for apply_max_files_limit helper."""
+
+    def _entries(self, n: int) -> list[DownloadEntry]:
+        return [
+            DownloadEntry(ekey=bytes([i % 256]) * 16, size=100, priority=0)
+            for i in range(n)
+        ]
+
+    def test_no_limit_returns_all_untruncated(self) -> None:
+        entries = self._entries(5)
+        limited, truncated = apply_max_files_limit(entries, 0)
+        assert limited == entries
+        assert truncated is False
+
+    def test_negative_limit_returns_all_untruncated(self) -> None:
+        entries = self._entries(5)
+        limited, truncated = apply_max_files_limit(entries, -1)
+        assert limited == entries
+        assert truncated is False
+
+    def test_limit_above_size_not_truncated(self) -> None:
+        entries = self._entries(3)
+        limited, truncated = apply_max_files_limit(entries, 10)
+        assert limited == entries
+        assert truncated is False
+
+    def test_limit_equal_to_size_not_truncated(self) -> None:
+        entries = self._entries(3)
+        limited, truncated = apply_max_files_limit(entries, 3)
+        assert limited == entries
+        assert truncated is False
+
+    def test_limit_below_size_truncates(self) -> None:
+        entries = self._entries(5)
+        limited, truncated = apply_max_files_limit(entries, 2)
+        assert limited == entries[:2]
+        assert truncated is True
+
+    def test_empty_entries_never_truncated(self) -> None:
+        limited, truncated = apply_max_files_limit([], 10)
+        assert limited == []
+        assert truncated is False
+
+
+class TestTruncatedBatchKeepsInstallState:
+    """Regression test: a --max-files truncated batch must keep resume state.
+
+    Mirrors the cleanup gate in install_to_casc (install.py): the state file
+    is removed only when nothing failed AND the batch was not truncated.
+    Each case drives a real InstallState file and asserts whether it survives.
+    """
+
+    @staticmethod
+    def _cleanup_gate(failed: int, integrity_errors: int, truncated: bool) -> bool:
+        # Must stay in sync with install_to_casc's cleanup gate.
+        return failed == 0 and integrity_errors == 0 and not truncated
+
+    def _saved_state(self, tmp_path: Path) -> InstallState:
+        (tmp_path / "Data").mkdir(parents=True)
+        state = InstallState(tmp_path, "abc123")
+        state.mark_downloaded(b"\x01" * 16, 100, priority=0)
+        state.save()
+        assert state.state_file_path.exists()
+        return state
+
+    def test_truncated_batch_keeps_state(self, tmp_path: Path) -> None:
+        state = self._saved_state(tmp_path)
+        if self._cleanup_gate(failed=0, integrity_errors=0, truncated=True):
+            state.cleanup()
+        assert state.state_file_path.exists()
+
+    def test_complete_batch_cleans_state(self, tmp_path: Path) -> None:
+        state = self._saved_state(tmp_path)
+        if self._cleanup_gate(failed=0, integrity_errors=0, truncated=False):
+            state.cleanup()
+        assert not state.state_file_path.exists()
+
+    def test_failures_keep_state(self, tmp_path: Path) -> None:
+        state = self._saved_state(tmp_path)
+        if self._cleanup_gate(failed=1, integrity_errors=0, truncated=False):
+            state.cleanup()
+        assert state.state_file_path.exists()

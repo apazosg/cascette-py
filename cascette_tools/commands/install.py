@@ -2081,6 +2081,22 @@ def _fmt_size(nbytes: int) -> str:
     return f"{nbytes} B"
 
 
+def apply_max_files_limit(
+    entries: list[DownloadEntry], max_files: int
+) -> tuple[list[DownloadEntry], bool]:
+    """Truncate a pending-entry batch to --max-files, reporting truncation.
+
+    Returns the (possibly truncated) entries and a flag telling whether the
+    limit dropped any work. A truncated batch leaves work pending, so the
+    caller must keep the install state file to allow resuming.
+    """
+    if max_files <= 0:
+        return entries, False
+    pending_before_limit = len(entries)
+    limited = entries[:max_files]
+    return limited, pending_before_limit > len(limited)
+
+
 def _show_priority_table(
     console: Console,
     entries: list[DownloadEntry],
@@ -2880,6 +2896,7 @@ def install_to_casc(
             console.print("\n[cyan]Step 6:[/cyan] No install manifest in BuildConfig")
 
         # Step 7: Install CASC files from download manifest
+        truncated = False
         if loose_only:
             installed = 0
             failed = 0
@@ -2893,8 +2910,9 @@ def install_to_casc(
                 "from the CDN on first launch."
             )
         else:
-            if max_files > 0:
-                pending_entries = pending_entries[:max_files]
+            pending_entries, truncated = apply_max_files_limit(
+                pending_entries, max_files
+            )
 
             console.print(
                 f"\n[cyan]Step 7:[/cyan] Installing {len(pending_entries)} files to local CASC..."
@@ -3029,8 +3047,9 @@ def install_to_casc(
         summary_table.add_row("State files created", f"{len(state_files)}")
         console.print(summary_table)
 
-        # Clean up state file on successful completion (no failures)
-        if failed == 0 and integrity_errors == 0:
+        # Keep the state file when the batch was truncated by --max-files:
+        # work remains and the state is the only thing that allows resuming.
+        if failed == 0 and integrity_errors == 0 and not truncated:
             install_state.cleanup()
             console.print(
                 "  [dim]Install state file removed (all files succeeded)[/dim]"
